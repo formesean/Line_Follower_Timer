@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arduino Timer Display</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+      }
+
+      #timer {
+        font-size: 48px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      #status {
+        font-size: 24px;
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">Waiting for start...</div>
+    <div id="timer">00:00.000</div>
+
+    <script>
+      let minutes = 0;
+      let seconds = 0;
+      let milliseconds = 0;
+      let timerInterval = null;
+      let isTimerStopped = false;
+
+      function formatTime(minutes, seconds, milliseconds) {
+        const formattedMinutes = String(minutes).padStart(2, "0");
+        const formattedSeconds = String(seconds).padStart(2, "0");
+        const formattedMilliseconds = String(milliseconds).padStart(3, "0");
+
+        return `${formattedMinutes}:${formattedSeconds}.${formattedMilliseconds}`;
+      }
+
+      // Update the timer display
+      function updateTimerDisplay() {
+        document.getElementById("timer").innerText = formatTime(
+          minutes,
+          seconds,
+          milliseconds
+        );
+      }
+
+      // Start the timer display
+      function startTimer() {
+        if (timerInterval) return;
+
+        minutes = 0;
+        seconds = 0;
+        milliseconds = 0;
+
+        timerInterval = setInterval(() => {
+          milliseconds += 100;
+
+          if (milliseconds >= 1000) {
+            milliseconds = 0;
+            seconds += 1;
+          }
+
+          if (seconds >= 60) {
+            seconds = 0;
+            minutes += 1;
+          }
+
+          updateTimerDisplay();
+        }, 100);
+      }
+
+      // Stop the timer display
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          isTimerStopped = true;
+        }
+      }
+
+      // Fetch and display the timer in real-time
+      async function fetchElapsedTime() {
+        try {
+          const response = await fetch("http://localhost:5000/elapsed-time");
+          if (!response.ok) {
+            throw new Error(
+              `Error fetching elapsed time: ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+
+          if (data.error) {
+            document.getElementById("status").innerText = data.error;
+          } else if (data.status === "START") {
+            if (!timerInterval && !isTimerStopped) {
+              startTimer();
+              document.getElementById("status").innerText =
+                "Timer is running...";
+            }
+          } else if (data.status === "STOP") {
+            stopTimer();
+            minutes = data.minutes || 0;
+            seconds = data.seconds || 0;
+            milliseconds = data.milliseconds || 0;
+            updateTimerDisplay();
+            document.getElementById("status").innerText = "Timer stopped.";
+          } else {
+            if (isTimerStopped) {
+              minutes = data.minutes || 0;
+              seconds = data.seconds || 0;
+              milliseconds = data.milliseconds || 0;
+              updateTimerDisplay();
+            }
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          document.getElementById("status").innerText =
+            "Failed to load elapsed time.";
+        }
+      }
+
+      setInterval(fetchElapsedTime, 500);
+
+      fetchElapsedTime();
+    </script>
+  </body>
+</html>
