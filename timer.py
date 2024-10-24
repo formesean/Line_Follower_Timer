@@ -1,23 +1,10 @@
-# class Serial(
-#     port: str | None = None,
-#     baudrate: int = 9600,
-#     bytesize: int = 8,
-#     parity: str = "N",
-#     stopbits: float = 1,
-#     timeout: float | None = None,
-#     xonxoff: bool = False,
-#     rtscts: bool = False,
-#     write_timeout: float | None = None,
-#     dsrdtr: bool = False,
-#     inter_byte_timeout: float | None = None,
-#     exclusive: bool | None = None
-# )
 import logging
 import serial
 import threading
 import time
-from flask import Flask, app, jsonify
+from flask import Flask, jsonify
 from flask_cors import CORS
+from serial.tools import list_ports
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -26,7 +13,6 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 # Connection settings
-port = 'COM11'
 baud_rate = 9600
 timeout = 1
 
@@ -35,16 +21,54 @@ start_time = None
 end_time = None
 is_timing = False
 start_signal = False
+arduino = None
+connected = False
 
 lock = threading.Lock()
 
-# Connect to Arduino
-try:
-    arduino = serial.Serial(port=port, baudrate=baud_rate, bytesize=8, parity='N', stopbits=1, timeout=timeout)
-    print(f'Connected to Arduino on {port}')
-except Exception as e:
-    print(f'Failed to connect to Aduino: {e}')
-    exit()
+# List all available COM ports
+def list_com_ports():
+    ports = list_ports.comports()
+    available_ports = []
+    for port, desc, hwid in ports:
+        available_ports.append({
+            'port': port,
+            'description': desc,
+            'hardware_id': hwid
+        })
+    if available_ports:
+        print("Available COM ports:")
+        for p in available_ports:
+            print(f"Port: {p['port']}, Description: {p['description']}, HWID: {p['hardware_id']}")
+    else:
+        print("No available COM ports found.")
+    return available_ports
+
+# Try to connect to available COM ports
+def connect_to_available_com_ports():
+    global arduino, connected
+
+    if connected:
+        return True
+
+    available_ports = list_com_ports()
+
+    if not available_ports:
+        print("No COM ports available. Exiting...")
+        exit()
+
+    for port_info in available_ports:
+        try:
+            print(f"Attempting to connect to {port_info['port']}...")
+            arduino = serial.Serial(port=port_info['port'], baudrate=baud_rate, bytesize=8, parity='N', stopbits=1, timeout=timeout)
+            print(f"Successfully connected to {port_info['port']}")
+            connected = True
+            return True
+        except Exception as e:
+            print(f"Failed to connect to {port_info['port']}: {e}")
+
+    main()
+    return False
 
 # Read serial input from Arduino
 def read_from_arduino():
@@ -68,13 +92,16 @@ def timing_thread():
     global elapsed_time, is_timing
     while True:
         if is_timing:
-            time.sleep(1)  # Wait for 1 second
+            time.sleep(1)
             with lock:
-                elapsed_time += 1000  # Increment time by 1000 milliseconds
+                elapsed_time += 1000
 
 # Main program
 def main():
     global elapsed_time, start_time, end_time, is_timing, start_signal
+
+    if not connect_to_available_com_ports():
+        return
 
     try:
         # Wait for button press or send GO signal
