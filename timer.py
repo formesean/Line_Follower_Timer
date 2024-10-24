@@ -2,7 +2,9 @@ import logging
 import serial
 import threading
 import time
-from flask import Flask, jsonify
+import webbrowser
+import os
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from serial.tools import list_ports
 
@@ -167,11 +169,17 @@ def get_elapsed_time():
         else:
            return jsonify({'error': 'Elapsed time not yet calculated'}), 400
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 if __name__ == '__main__':
     timer_thread = threading.Thread(target=timing_thread)
     timer_thread.daemon = True
 
     serial_thread = threading.Thread(target=main)
     serial_thread.start()
+
+    webbrowser.open('http://localhost:5000', new=2)
 
     app.run(debug=True, use_reloader=False)
