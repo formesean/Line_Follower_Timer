@@ -11,7 +11,7 @@
   </head>
   <body>
     <div class="container">
-      <div id="status">Waiting for start...</div>
+      <!-- <div id="status">Waiting for start...</div> -->
       <div id="timer">00:00.000</div>
     </div>
 
@@ -82,9 +82,9 @@
           const data = await response.json();
 
           if (data.error) {
-            document.getElementById("status").innerText = data.error;
+            // document.getElementById("status").innerText = data.error;
           } else if (data.status === "START") {
-            document.getElementById("status").innerText = "Timer is running...";
+            // document.getElementById("status").innerText = "Timer is running...";
 
             // If the timer is stopped, start a new session
             if (isTimerStopped) {
@@ -105,11 +105,11 @@
             seconds = data.seconds || 0;
             milliseconds = data.milliseconds || 0;
             updateTimerDisplay();
-            document.getElementById("status").innerText = "Timer stopped.";
+            // document.getElementById("status").innerText = "Timer stopped.";
           }
         } catch (error) {
           console.error("Error:", error);
-          document.getElementById("status").innerText = "Failed to load.";
+          //   document.getElementById("status").innerText = "Failed to load.";
         }
       }
 
